@@ -16,12 +16,18 @@ FirebaseAuth auth;
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
+#define LED_BUILTIN 2  // Integrisana LED dioda na ESP32
+
+float donja = 0.0;
+float gornja = 0.0;
+
 void setup() {
     Serial.begin(115200);
+    
+    pinMode(LED_BUILTIN, OUTPUT);  // Postavljamo integrisanu LED diodu kao izlaz
 
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.print("Povezivanje na WiFi...");
-
     
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -40,8 +46,27 @@ void setup() {
 }
 
 void loop() {
-    float temperature = dht.readTemperature();
-    
+    // Preuzimanje donje i gornje granice sa Firebase-a (putanje u okviru /postavke)
+    if (Firebase.getFloat(firebaseData, "/postavke/donja")) {
+        donja = firebaseData.floatData();
+        Serial.print("Donja granica: ");
+        Serial.println(donja);
+    } else {
+        Serial.print("❌ Greška pri preuzimanju donje granice: ");
+        Serial.println(firebaseData.errorReason());
+    }
+
+    if (Firebase.getFloat(firebaseData, "/postavke/gornja")) {
+        gornja = firebaseData.floatData();
+        Serial.print("Gornja granica: ");
+        Serial.println(gornja);
+    } else {
+        Serial.print("❌ Greška pri preuzimanju gornje granice: ");
+        Serial.println(firebaseData.errorReason());
+    }
+
+    // Fiksna vrednost temperature (simulacija)
+    float temperature = 11;
 
     if (isnan(temperature)) {
         Serial.println("⚠️ Greška pri čitanju temperature!");
@@ -51,13 +76,22 @@ void loop() {
     Serial.print("Temperatura: ");
     Serial.println(temperature);
 
-    // Ispravan način za slanje temperature u Firebase
+    // Slanje trenutne temperature u Firebase
     if (Firebase.setFloat(firebaseData, "/temperatura", temperature)) {
-        Serial.println("✅ Podatak uspešno poslat!");
+        Serial.println("✅ Temperatura uspešno poslata u Firebase!");
     } else {
-        Serial.print("❌ Greška pri slanju: ");
+        Serial.print("❌ Greška pri slanju temperature: ");
         Serial.println(firebaseData.errorReason());
     }
 
-    delay(5000);
+    // Provjera da li je temperatura unutar granica
+    if (temperature >= donja && temperature <= gornja) {
+        digitalWrite(LED_BUILTIN, HIGH); // Paljenje LED diode
+        Serial.println("✅ Temperatura je unutar granica, LED je upaljena.");
+    } else {
+        digitalWrite(LED_BUILTIN, LOW); // Gašenje LED diode
+        Serial.println("❌ Temperatura je van granica, LED je ugašena.");
+    }
+
+    delay(3000);  // Čekanje 3 sekunde pre sledećeg merenja
 }
