@@ -66,7 +66,11 @@ void loop() {
     }
 
     // Fiksna vrednost temperature (simulacija)
-    float temperature = 11;
+    //float temperature = 13.5;
+    //float temperature = random(150, 300) / 10.0;
+
+    //Uzimanje podataka iz DHT11 senzora
+    float temperature = dht.readTemperature();
 
     if (isnan(temperature)) {
         Serial.println("⚠️ Greška pri čitanju temperature!");
